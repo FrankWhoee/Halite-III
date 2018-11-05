@@ -10,7 +10,7 @@ from .. import config, model, util
 
 def serve_game_task(conn, has_gpu=False):
     """Try to find a set of players to play a game together."""
-    if not config.COMPETITION_FINALS_PAIRING and random.random() < 0.1:
+    if not config.COMPETITION_FINALS_PAIRING and random.random() < 0.05:
         result = find_challenge(conn, has_gpu)
         if result:
             return result
@@ -189,7 +189,7 @@ def find_challenge(conn, has_gpu=False):
                  datetime.datetime.now() - datetime.timedelta(minutes=30))
             )
         ).order_by(
-            model.challenges.c.most_recent_game_task.asc()
+            model.challenges.c.most_recent_game_task.asc().nullsfirst()
         )
     ).first()
 

@@ -2,8 +2,9 @@ package hlt
 
 import (
 	"fmt"
-	"hlt/gameconfig"
-	"hlt/input"
+
+	"./gameconfig"
+	"./input"
 )
 
 // Entity - Base entity structure
@@ -12,6 +13,9 @@ type Entity struct {
 	playerID int
 	Pos      *Position
 }
+
+// GetID - Gets an entity's ID, which is unique within their subtype.
+func (e *Entity) GetID() int { return e.id }
 
 /*********************************************************************************/
 
@@ -51,10 +55,13 @@ func NewShip(playerID int) *Ship {
 	return &Ship{&Entity{shipID, playerID, &Position{x, y}}, halite}
 }
 
+// GetID - Get a Ship's ID
+func (s *Ship) GetID() int { return s.E.id }
+
 // IsFull - Returns true if the ship is full
 func (s *Ship) IsFull() bool {
 	var maxHalite, _ = gameconfig.GetInstance().GetInt(gameconfig.MaxHalite)
-	return s.Halite > maxHalite
+	return s.Halite >= maxHalite
 }
 
 // MakeDropoff - Creates command to turn the ship into a dropoff

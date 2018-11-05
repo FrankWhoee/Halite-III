@@ -122,6 +122,39 @@ export function setAssetRoot(path) {
             BASE_SPRITES.push(sheet.textures["base-cb-3.png"]);
         }));
     }
+    else if (theme.selectedTheme === "Colorblind II") {
+        promises.push(loadSpritesheet(
+            require("../assets/colorblind-ii.json"),
+            ASSET_ROOT + require("../assets/colorblind-ii.png"),
+        ).then((sheet) => {
+            SHEETS.push(sheet);
+
+            TURTLE_SPRITES.push([
+                sheet.textures["turtle-white.png"],
+                sheet.textures["turtle-white.png"],
+                sheet.textures["turtle-white.png"],
+            ]);
+            TURTLE_SPRITES.push([
+                sheet.textures["turtle-black.png"],
+                sheet.textures["turtle-black.png"],
+                sheet.textures["turtle-black.png"],
+            ]);
+            TURTLE_SPRITES.push([
+                sheet.textures["turtle-yellow.png"],
+                sheet.textures["turtle-yellow.png"],
+                sheet.textures["turtle-yellow.png"],
+            ]);
+            TURTLE_SPRITES.push([
+                sheet.textures["turtle-red.png"],
+                sheet.textures["turtle-red.png"],
+                sheet.textures["turtle-red.png"],
+            ]);
+            BASE_SPRITES.push(sheet.textures["base-white.png"]);
+            BASE_SPRITES.push(sheet.textures["base-black.png"]);
+            BASE_SPRITES.push(sheet.textures["base-yellow.png"]);
+            BASE_SPRITES.push(sheet.textures["base-red.png"]);
+        }));
+    }
     else if (theme.selectedTheme === "Halite II") {
         promises.push(loadSpritesheet(
             require("../assets/planet-small.json"),
@@ -201,6 +234,40 @@ export function setAssetRoot(path) {
             BASE_SPRITES.push(sheet.textures["gt.png"]);
             BASE_SPRITES.push(sheet.textures["gt.png"]);
             BASE_SPRITES.push(sheet.textures["gt.png"]);
+        }));
+    }
+    else if (theme.selectedTheme === "Halloween") {
+        promises.push(loadSpritesheet(
+            require("../assets/hallotheme.json"),
+            ASSET_ROOT + require("../assets/hallotheme.png"),
+        ).then((sheet) => {
+            SHEETS.push(sheet);
+
+            BASE_SPRITES.push(sheet.textures["greenbase.png"]);
+            BASE_SPRITES.push(sheet.textures["orangebase.png"]);
+            BASE_SPRITES.push(sheet.textures["purpbase.png"]);
+            BASE_SPRITES.push(sheet.textures["whitebase.png"]);
+
+            TURTLE_SPRITES.push([
+                sheet.textures["bat_green_3.png"],
+                sheet.textures["bat_green_2.png"],
+                sheet.textures["bat_green_1.png"],
+            ]);
+            TURTLE_SPRITES.push([
+                sheet.textures["bat_orange_3.png"],
+                sheet.textures["bat_orange_2.png"],
+                sheet.textures["bat_orange_1.png"],
+            ]);
+            TURTLE_SPRITES.push([
+                sheet.textures["bat_purp_3.png"],
+                sheet.textures["bat_purp_2.png"],
+                sheet.textures["bat_purp_1.png"],
+            ]);
+            TURTLE_SPRITES.push([
+                sheet.textures["bat_white_3.png"],
+                sheet.textures["bat_white_2.png"],
+                sheet.textures["bat_white_1.png"],
+            ]);
         }));
     }
     else {

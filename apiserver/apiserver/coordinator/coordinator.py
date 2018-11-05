@@ -79,9 +79,6 @@ def upload_game():
         "capability": flask.request.values.getlist("capability"),
         }
 
-    # Store the replay and any error logs
-    replay_key, bucket_class = store_game_artifacts(replay_name, users)
-
     with model.engine.begin() as conn:
         total_users = conn.execute(model.total_ranked_users).first()[0]
         # Sort the users to prevent deadlock in the stored_bot for update lock
@@ -145,8 +142,9 @@ def upload_game():
 
         # Store game results in database
         game_id = store_game_results(conn, game_output, stats,
-                                     replay_key, bucket_class,
+                                     replay_name,
                                      users, challenge)
+
         # Update rankings
         if not challenge:
             update_rankings(conn, users)
@@ -154,7 +152,7 @@ def upload_game():
     return util.response_success()
 
 
-def store_game_artifacts(replay_name, users):
+def store_game_artifacts(game_id, replay_name, users):
     """
     Upload the replay and any error logs to object storage.
 
@@ -165,6 +163,7 @@ def store_game_artifacts(replay_name, users):
     were saved in.
     """
     replay_key, _ = os.path.splitext(replay_name)
+    replay_key = "{}-{}".format(replay_key, game_id)
 
     # Store replay in separate bucket if user is Gold/Plat/Diamond
     bucket_class = 0
@@ -177,6 +176,8 @@ def store_game_artifacts(replay_name, users):
     bucket = model.get_replay_bucket(bucket_class)
     blob = gcloud_storage.Blob(replay_key, bucket, chunk_size=262144)
     blob.upload_from_file(flask.request.files[replay_name])
+
+    error_logs = {}
 
     # Store error logs
     for user in users:
@@ -194,11 +195,12 @@ def store_game_artifacts(replay_name, users):
                                        model.get_error_log_bucket(),
                                        chunk_size=262144)
             blob.upload_from_file(flask.request.files[error_log_name])
+            error_logs[user["user_id"]] = error_log_key
 
-    return replay_key, bucket_class
+    return replay_key, bucket_class, error_logs
 
 
-def store_game_results(conn, game_output, stats, replay_key, bucket_class,
+def store_game_results(conn, game_output, stats, replay_name,
                        users, challenge):
     """
     Store the outcome of a game in the database.
@@ -213,13 +215,13 @@ def store_game_results(conn, game_output, stats, replay_key, bucket_class,
 
     # Store game results in database
     game_id = conn.execute(model.games.insert().values(
-        replay_name=replay_key,
+        replay_name="UNKNOWN",
         map_width=game_output["map_width"],
         map_height=game_output["map_height"],
         map_seed=game_output["map_seed"],
         map_generator=game_output["map_generator"],
         time_played=sqlalchemy.sql.func.NOW(),
-        replay_bucket=bucket_class,
+        replay_bucket=0,
         challenge_id=challenge,
         stats=stats,
     )).inserted_primary_key[0]
@@ -237,7 +239,7 @@ def store_game_results(conn, game_output, stats, replay_key, bucket_class,
             user_id=user["user_id"],
             bot_id=user["bot_id"],
             version_number=user["version_number"],
-            log_name=user["log_name"],
+            log_name=None,
             rank=user["rank"],
             # Which player in the game (numbered starting from 0) was
             # this user?
@@ -261,6 +263,27 @@ def store_game_results(conn, game_output, stats, replay_key, bucket_class,
         if user["timed_out"]:
             update_user_timeout(conn, game_id, user)
 
+    # Store the replay and any error logs
+    replay_key, bucket_class, error_log_keys = \
+        store_game_artifacts(game_id, replay_name, users)
+    conn.execute(model.games.update().where(
+        model.games.c.id == game_id
+    ).values(
+        replay_name=replay_key,
+        replay_bucket=bucket_class,
+    ))
+
+    for user in users:
+        if user["user_id"] in error_log_keys:
+            conn.execute(model.game_participants.update().where(
+                (model.game_participants.c.game_id == game_id) &
+                (model.game_participants.c.user_id == user["user_id"]) &
+                (model.game_participants.c.bot_id == user["bot_id"])
+            ).values(
+                log_name=error_log_keys[user["user_id"]],
+            ))
+
+
     if challenge is not None:
         store_challenge_results(conn, users, challenge, stats)
 
@@ -272,7 +295,7 @@ def store_challenge_results(conn, users, challenge, stats):
         num_games=model.challenges.c.num_games + 1,
         status=sqlalchemy.case(
             [
-                (model.challenges.c.num_games >= 30,
+                (model.challenges.c.num_games >= 10,
                  sqlalchemy.sql.func.cast(
                      model.ChallengeStatus.FINISHED.value,
                      model.challenges.c.status.type

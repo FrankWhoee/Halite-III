@@ -1,8 +1,12 @@
+#[macro_use]
+extern crate lazy_static;
 extern crate rand;
 
 use hlt::command::Command;
 use hlt::direction::Direction;
 use hlt::game::Game;
+use hlt::log::Log;
+use hlt::navi::Navi;
 use rand::Rng;
 use rand::SeedableRng;
 use rand::XorShiftRng;
@@ -28,23 +32,26 @@ fn main() {
     ]);
 
     let mut game = Game::new();
+    let mut navi = Navi::new(game.map.width, game.map.height);
     // At this point "game" variable is populated with initial map data.
     // This is a good place to do computationally expensive start-up pre-processing.
     // As soon as you call "ready" function below, the 2 second per turn timer will start.
     Game::ready("MyRustBot");
 
-    game.log.borrow_mut().log(&format!("Successfully created bot! My Player ID is {}. Bot rng seed is {}.", game.my_id.0, rng_seed));
+    Log::log(&format!("Successfully created bot! My Player ID is {}. Bot rng seed is {}.", game.my_id.0, rng_seed));
 
     loop {
         game.update_frame();
+        navi.update_frame(&game);
+
         let me = &game.players[game.my_id.0];
-        let game_map = &mut game.game_map;
+        let map = &mut game.map;
 
         let mut command_queue: Vec<Command> = Vec::new();
 
         for ship_id in &me.ship_ids {
             let ship = &game.ships[ship_id];
-            let cell = game_map.at_entity(ship);
+            let cell = map.at_entity(ship);
 
             let command = if cell.halite < game.constants.max_halite / 10 || ship.is_full() {
                 let random_direction = Direction::get_all_cardinals()[rng.gen_range(0, 4)];
@@ -55,12 +62,10 @@ fn main() {
             command_queue.push(command);
         }
 
-        let shipyard_cell = game_map.at_entity(&me.shipyard);
-
         if
             game.turn_number <= 200 &&
             me.halite >= game.constants.ship_cost &&
-            !shipyard_cell.is_occupied()
+            navi.is_safe(&me.shipyard.position)
         {
             command_queue.push(me.shipyard.spawn());
         }

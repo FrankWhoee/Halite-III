@@ -27,6 +27,20 @@ export const THEMES = {
         playerColors: [0x5E5EFF, 0xAEAEE6, 0x575738, 0xBFBF00],
         colorTheme: "Colorblind",
     },
+    "Colorblind II": {
+            tintFactory: false,
+            tintShip: false,
+            rotateShip: true,
+            scaleMapSprite: true,
+            bloom: true,
+            scale: {
+                ship: 1,
+                base: 1,
+                dropoff: 1,
+            },
+            playerColors: [0xD0D0E0, 0x000000, 0xAFC73F, 0xFF0008],
+            colorTheme: "TheSea",
+    },
     "Halite II": {
         tintFactory: true,
         tintShip: true,
@@ -57,6 +71,20 @@ export const THEMES = {
         },
         playerColors: [0x800000, 0x008000, 0x808000, 0x800080],
         colorTheme: "ANSI",
+    },
+    "Halloween": {
+      tintFactory: false,
+      tintShip: false,
+      rotateShip: true,
+      scaleMapSprite: true,
+      bloom: true,
+      scale: {
+          ship: 1,
+          base: 1,
+          dropoff: 1,
+      },
+      playerColors: [0x16FF05, 0xFF7B05, 0xdA05FF, 0xcdcdcd],
+      colorTheme: "Colorblind",
     },
 };
 

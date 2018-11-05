@@ -179,14 +179,14 @@ const showGame = (game) => {
         // get the bot uploader container
         const container = document.getElementById('bot-upload-container')
         if (!container || !container.contains(e.target)) {
-          event.preventDefault()
+          e.preventDefault()
         }
       })
       $('body').on('dragover', (e) => {
         // get the bot uploader container
         const container = document.getElementById('bot-upload-container')
         if (!container || !container.contains(e.target)) {
-          event.preventDefault()
+          e.preventDefault()
         }
       });
   },
@@ -212,7 +212,7 @@ const showGame = (game) => {
             }).then(() => {
               this.message = null
             }).catch(() => {
-              this.message = 'There was an error parsing the replay. Please let us know at halite@halite.io.'
+              this.message = 'There was an error parsing the replay. To resolve the issue, try hard refreshing the page with Ctrl + F5 (Windows) or Command + Shift + R (Mac).'
             })
           }
           reader.readAsArrayBuffer(files[0])

@@ -263,15 +263,17 @@
             }
             .vs__selected-options {
               .selected-tag {
-                display: flex;
-                align-items: center;
-                padding: 8px 6px;
+                padding: 8px 20px 8px 6px;
                 height: 32px;
+                line-height: 16px;
+                overflow-x: hidden;
+                text-overflow: ellipsis;
                 font-size: 14px;
                 background-color: #0049B9;
                 .close {
-                  position: relative;
-                  margin-left: 15px;
+                  position: absolute;
+                  top: 5px;
+                  right: 5px;
                   color: #FFFFFF;
                   opacity: 1;
                 }
@@ -490,6 +492,7 @@
     left: 2em;
     top: 12.5px;
     transform: translateY(-50%);
+    box-shadow: 6px 17px 29px rgba(23,174,219,0.05);
 
     h4 {
         text-transform: uppercase;
@@ -510,6 +513,10 @@
         clear: both;
         margin: 0;
         text-align: left;
+        font-weight: 600;
+        white-space: normal;
+        letter-spacing: 0;
+        text-transform: none;
     }
 }
 

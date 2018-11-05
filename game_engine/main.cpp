@@ -76,6 +76,7 @@ int main(int argc, char *argv[]) {
 
     if (turn_limit_arg.isSet()) {
         constants.MAX_TURNS = turn_limit_arg.getValue();
+        constants.MIN_TURNS = turn_limit_arg.getValue();
     }
 
     if (strict_switch.isSet()) {
@@ -160,23 +161,31 @@ int main(int argc, char *argv[]) {
         idx++;
     }
 
+    // JSON results info, used by backend
+    nlohmann::json results;
+    results["error_logs"] = nlohmann::json::object();
+    results["terminated"] = nlohmann::json::object();
+
     // Output replay file for visualizer
+
+    // While compilers like G++4.8 report C++11 compatibility, they do not
+    // support std::put_time, so we have to use strftime instead.
+    const auto time = std::time(nullptr);
+    const auto localtime = std::localtime(&time);
+    static constexpr size_t MAX_DATE_STRING_LENGTH = 25;
+    char time_string[MAX_DATE_STRING_LENGTH];
+    std::strftime(time_string, MAX_DATE_STRING_LENGTH, "%Y%m%d-%H%M%S%z", localtime);
+
     if (!no_replay_switch.getValue()) {
         // Output gamefile. First try the replays folder; if that fails, just use the straight filename.
         std::stringstream filename_buf;
-        // While compilers like G++4.8 report C++11 compatibility, they do not
-        // support std::put_time, so we have to use strftime instead.
-        auto time = std::time(nullptr);
-        auto localtime = std::localtime(&time);
-        static constexpr size_t MAX_DATE_STRING_LENGTH = 25;
-        char time_string[MAX_DATE_STRING_LENGTH];
-        std::strftime(time_string, MAX_DATE_STRING_LENGTH, "%Y%m%d-%H%M%S%z", localtime);
         filename_buf << "replay-" << std::string(time_string);
         filename_buf << "-" << replay.map_generator_seed;
         filename_buf << "-" << map.width;
         filename_buf << "-" << map.height << ".hlt";
         auto filename = filename_buf.str();
         std::string output_filename = replay_directory + filename;
+        results["replay"] = output_filename;
         bool enable_compression = !no_compression_switch.getValue();
         try {
             replay.output(output_filename, enable_compression);
@@ -187,77 +196,73 @@ int main(int argc, char *argv[]) {
             replay.output(output_filename, enable_compression);
         }
         Logging::log("Opening a file at " + output_filename);
-        for (const auto &stats : replay.game_statistics.player_statistics) {
-            std::stringstream message;
-            message << "Player "
-                    << to_string(stats.player_id)
-                    << ", '"
-                    << replay.players.at(stats.player_id).name
-                    << "', was rank "
-                    << std::to_string(stats.rank)
-                    << " with "
-                    << std::to_string(stats.turn_productions.back())
-                    << " halite";
-            Logging::log(message.str());
-        }
+    }
 
-        // JSON results info, used by backend
-        nlohmann::json results;
-        results["error_logs"] = nlohmann::json::object();
-        results["terminated"] = nlohmann::json::object();
+    for (const auto &stats : replay.game_statistics.player_statistics) {
+        std::stringstream message;
+        message << "Player "
+                << to_string(stats.player_id)
+                << ", '"
+                << replay.players.at(stats.player_id).name
+                << "', was rank "
+                << std::to_string(stats.rank)
+                << " with "
+                << std::to_string(stats.turn_productions.back())
+                << " halite";
+        Logging::log(message.str());
+    }
 
-        for (const auto &[player_id, player] : replay.players) {
-            std::string error_log = game.logs.str(player_id);
-            if (!error_log.empty()) {
-                if (!no_logs_switch.getValue() || player.terminated) {
-                    std::stringstream logname_buf;
-                    logname_buf << "errorlog-" << std::string(time_string)
-                                << "-" << replay.map_generator_seed
-                                << "-" << map_width
-                                << "-" << map_height
-                                << "-" << player_id
-                                << ".log";
-                    const auto log_filename = logname_buf.str();
-                    auto log_filepath = replay_directory + log_filename;
+    for (const auto &[player_id, player] : replay.players) {
+        std::string error_log = game.logs.str(player_id);
+        if (!error_log.empty()) {
+            if (!no_logs_switch.getValue() || player.terminated) {
+                std::stringstream logname_buf;
+                logname_buf << "errorlog-" << std::string(time_string)
+                            << "-" << replay.map_generator_seed
+                            << "-" << map_width
+                            << "-" << map_height
+                            << "-" << player_id
+                            << ".log";
+                const auto log_filename = logname_buf.str();
+                auto log_filepath = replay_directory + log_filename;
 
-                    std::ofstream log_file;
+                std::ofstream log_file;
+                log_file.open(log_filepath, std::ios_base::out);
+                if (!log_file.is_open()) {
+                    log_filepath = replay_directory + log_filename;
                     log_file.open(log_filepath, std::ios_base::out);
-                    if (!log_file.is_open()) {
-                        log_filepath = replay_directory + log_filename;
-                        log_file.open(log_filepath, std::ios_base::out);
-                    }
-
-                    results["error_logs"][to_string(player_id)] = log_filepath;
-                    log_file.write(error_log.c_str(), error_log.size());
-                    Logging::log("Player has log output. Writing a log at " + log_filepath,
-                                 Logging::Level::Info, player.id);
                 }
-                else {
-                    Logging::log("Player has log output, but log was suppressed.",
-                                 Logging::Level::Info, player.id);
-                }
-                results["terminated"][to_string(player_id)] = player.terminated;
-            }
-        }
 
-        if (json_results_switch.getValue()) {
-            results["replay"] = output_filename;
-            results["map_width"] = map_width;
-            results["map_height"] = map_height;
-            results["map_seed"] = seed;
-            std::ostringstream stream;
-            stream << type;
-            results["map_generator"] = stream.str();
-            results["final_snapshot"] = game.to_snapshot(map_parameters);
-            results["stats"] = nlohmann::json::object();
-            for (const auto &stats : replay.game_statistics.player_statistics) {
-                results["stats"][to_string(stats.player_id)] = {
-                    {"rank", stats.rank},
-                    {"score", stats.turn_productions.back()}
-                };
+                results["error_logs"][to_string(player_id)] = log_filepath;
+                log_file.write(error_log.c_str(), error_log.size());
+                Logging::log("Player has log output. Writing a log at " + log_filepath,
+                             Logging::Level::Info, player.id);
             }
-            std::cout << results.dump(JSON_INDENT_LEVEL) << std::endl;
+            else {
+                Logging::log("Player has log output, but log was suppressed.",
+                             Logging::Level::Info, player.id);
+            }
+            results["terminated"][to_string(player_id)] = player.terminated;
         }
+    }
+
+    results["map_width"] = map_width;
+    results["map_height"] = map_height;
+    results["map_seed"] = seed;
+    std::ostringstream stream;
+    stream << type;
+    results["map_generator"] = stream.str();
+    results["final_snapshot"] = game.to_snapshot(map_parameters);
+    results["stats"] = nlohmann::json::object();
+    for (const auto &stats : replay.game_statistics.player_statistics) {
+        results["stats"][to_string(stats.player_id)] = {
+            {"rank", stats.rank},
+            {"score", stats.turn_productions.back()}
+        };
+    }
+
+    if (json_results_switch.getValue()) {
+        std::cout << results.dump(JSON_INDENT_LEVEL) << std::endl;
     }
 
     return 0;
